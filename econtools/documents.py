@@ -1,6 +1,8 @@
 import os
 import numpy as np
 
+rng = np.random.default_rng()
+
 DEFAULT_PREAMBLE = """
 \\documentclass[11pt]{article}
 \\usepackage[utf8]{inputenc}
@@ -106,7 +108,7 @@ class RawLatex:
         return self.tex
     
 class MCQ:
-    def __init__(self, question, answers, solution=0, horz=False, shuffle=True, sort=False):
+    def __init__(self, question, answers, solution=0, horz=False, shuffle=True, sort=False, rng=rng):
         self.question = question
         self.answers = answers
         self.solution = solution
@@ -119,7 +121,7 @@ class MCQ:
                 self.answers[i] = answers[sortindex[i]]
             self.solution = sortindex.tolist().index(solution)
         elif shuffle:
-            perm = np.random.permutation(len(self.answers))
+            perm = rng.permutation(len(self.answers))
             tempa = self.answers.copy()
             for i in range(len(self.answers)):
                 self.answers[perm[i]] = tempa[i]
@@ -148,8 +150,8 @@ class MCQ:
         t+= "\\end{q}\n"
         return t
         
-def generate_distractors(x, K=4, delta=2, type='mul'):
-    nless = np.random.randint(K)
+def generate_distractors(x, K=4, delta=2, type='mul', rng=rng):
+    nless = rng.integers(K)
     nmore = K - nless - 1
     answers = [x]
     for i in range(nless):

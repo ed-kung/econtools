@@ -108,11 +108,12 @@ class RawLatex:
         return self.tex
     
 class MCQ:
-    def __init__(self, question, answers, solution=0, horz=False, shuffle=True, sort=False, rng=rng):
+    def __init__(self, question, answers, solution=0, horz=False, shuffle=True, sort=False, rng=rng, numerical=False):
         self.question = question
         self.answers = answers
         self.solution = solution
         self.horz = horz
+        self.numerical = numerical
         
         if sort:
             self.answers = answers.copy()
@@ -139,11 +140,17 @@ class MCQ:
         t = "\\begin{q}\n" + question + "\n\n"
         if self.horz:
             for i in range(len(answers)):
-                t+= f"~ {chr(97+i)}) {answers[i]} \n"
+                myans = answers[i]
+                if self.numerical:
+                    myans = f"{myans:,g}"
+                t+= f"~ {chr(97+i)}) {myans} \n"
         else:
             t+='\\begin{enumerate}[(a)]\n'
             for i in range(len(answers)):
-                t+=f"  \\item {answers[i]} \n"
+                myans = answers[i]
+                if self.numerical:
+                    myans = f"{myans:,g}"
+                t+=f"  \\item {myans} \n"
             t+='\\end{enumerate}\n'
         if solutions:
             t+= f"\n{{\\color{{red}} Answer: {chr(97+self.solution)} }}\n"

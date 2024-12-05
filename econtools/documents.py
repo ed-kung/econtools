@@ -157,7 +157,19 @@ class MCQ:
         t+= "\\end{q}\n"
         return t
         
-def generate_distractors(x, K=4, delta=2, type='mul', rng=rng):
+def generate_distractors(x, K=4, delta=None, type='add', rng=rng):
+    if not delta:
+        if type=='add':
+            if np.abs(x)<2: delta = 0.1*np.abs(x)
+            elif np.abs(x)<4: delta = 0.5
+            elif np.abs(x)<20: delta = 1
+            elif np.abs(x)<50: delta = 2
+            elif np.abs(x)<100: delta = 5
+            elif np.abs(x)<200: delta = 10
+            else: delta = np.round(0.1*np.abs(x))
+        else:
+            delta = 2
+    
     nless = rng.integers(K)
     nmore = K - nless - 1
     answers = [x]

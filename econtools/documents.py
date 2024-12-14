@@ -72,8 +72,10 @@ class Document:
         t = self.texify(solutions)
         with open(os.path.join(output_dir, f"{filename}.tex"), 'w') as f:
             f.write(t)
+        curr_dir = os.getcwd()
         os.chdir(output_dir)
         os.system(f"pdflatex {filename}")
+        os.chdir(curr_dir)
 
 class Multipart:
     def __init__(self):
@@ -160,13 +162,12 @@ class MCQ:
 def generate_distractors(x, K=4, delta=None, type='add', rng=rng):
     if not delta:
         if type=='add':
-            if np.abs(x)<2: delta = 0.1*np.abs(x)
-            elif np.abs(x)<4: delta = 0.5
-            elif np.abs(x)<20: delta = 1
-            elif np.abs(x)<50: delta = 2
-            elif np.abs(x)<100: delta = 5
-            elif np.abs(x)<200: delta = 10
-            else: delta = np.round(0.1*np.abs(x))
+            if np.abs(x)>=10: delta = np.round(0.1*np.abs(x))
+            elif np.abs(x)>=4: delta = 1
+            elif np.abs(x)>=2: delta = 0.5
+            elif np.abs(x)>=1: delta = 0.1
+            elif np.abs(x)>0: delta = 0.1*np.abs(x)
+            else: delta = 1
         else:
             delta = 2
     

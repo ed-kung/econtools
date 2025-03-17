@@ -159,7 +159,7 @@ class MCQ:
         t+= "\\end{q}\n"
         return t
         
-def generate_distractors(x, K=4, delta=None, type='add', rng=rng):
+def generate_distractors(x, K=4, delta=None, type='add', rng=rng, must_positive=False):
     if not delta:
         if type=='add':
             if np.abs(x)>=10: delta = np.round(0.1*np.abs(x))
@@ -171,20 +171,29 @@ def generate_distractors(x, K=4, delta=None, type='add', rng=rng):
         else:
             delta = 2
     
-    nless = rng.integers(K)
-    nmore = K - nless - 1
-    answers = [x]
-    for i in range(nless):
-        if type=='mul':
-            answers.append(x*delta**(-i-1))
-        if type=='add':
-            answers.append(x - delta*(i+1))
-    for i in range(nmore):
-        if type=='mul':
-            answers.append(x*delta**(i+1))
-        if type=='add':
-            answers.append(x + delta*(i+1))
-    return answers
-
-
+    max_tries = 100
+    for i in range(max_tries):
+        nless = rng.integers(K)
+        nmore = K - nless - 1
+        answers = [x]
+        for i in range(nless):
+            if type=='mul':
+                answers.append(x*delta**(-i-1))
+            if type=='add':
+                answers.append(x - delta*(i+1))
+        for i in range(nmore):
+            if type=='mul':
+                answers.append(x*delta**(i+1))
+            if type=='add':
+                answers.append(x + delta*(i+1))
+        
+        any_negative = False
+        for ans in answers:
+            if ans<0:
+                any_negative = True
+        if must_positive and any_negative:
+            continue
+        else:
+            return answers
+    raise()
    

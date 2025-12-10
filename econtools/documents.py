@@ -91,10 +91,11 @@ class Multipart:
         return t
 
 class Homework(Document):
-    def __init__(self, title, due_date, separator='\\vspace{0.5cm}\n\\hrule\n\\vspace{0.5cm}'):
+    def __init__(self, title, due_date=None, separator='\\vspace{0.5cm}\n\\hrule\n\\vspace{0.5cm}'):
         self.items = []
         self.separator=separator
-        self.items.append(RawLatex(f"\\noindent {title} \\\\ \\noindent Due: {due_date}"))
+        if due_date:
+            self.items.append(RawLatex(f"\\noindent {title} \\\\ \\noindent Due: {due_date}"))
 
 class Exam(Document):
     def __init__(self, title, version, time, separator='\\vspace{0.5cm}\n\\hrule\n\\vspace{0.5cm}'):

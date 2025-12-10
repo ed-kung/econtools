@@ -96,6 +96,8 @@ class Homework(Document):
         self.separator=separator
         if due_date:
             self.items.append(RawLatex(f"\\noindent {title} \\\\ \\noindent Due: {due_date}"))
+        else:
+            self.items.append(RawLatex(f"\\noindent {title}"))
 
 class Exam(Document):
     def __init__(self, title, version, time, separator='\\vspace{0.5cm}\n\\hrule\n\\vspace{0.5cm}'):

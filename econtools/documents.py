@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import subprocess
 
 rng = np.random.default_rng()
 
@@ -74,7 +75,14 @@ class Document:
             f.write(t)
         curr_dir = os.getcwd()
         os.chdir(output_dir)
-        os.system(f"pdflatex {filename}")
+        result = subprocess.run(
+            ["pdflatex", "-interaction=nonstopmode", filename],
+            capture_output=True,
+            text=True,
+            timeout=60
+        )
+        print(result.stdout)
+        print(result.stderr)
         os.chdir(curr_dir)
 
 class Multipart:

@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from econtools.assignments.latex import MCQ, generate_distractors
+from econtools.assignments.mcq import MCQ, generate_distractors
 
 
 @dataclass
@@ -54,7 +54,7 @@ def _join_url(prefix, filename):
 class GenericProblem:
     # --- class-level declarations (override in subclasses) ---
     default_params: dict = {}
-    data_format: str = "csv"       # "csv" or "pkl" (use pkl when params hold arrays/lists)
+    data_format: str = "parquet"   
     depends_on: tuple = ()         # names of problem types whose data must be generated first
     seed: int = 123                # default seed used when generating valid params
     default_name: str = None       # default instance name; falls back to snake_case of class name
@@ -111,9 +111,11 @@ class GenericProblem:
         self.setup_list.append({"setup": setup, "online_setup": online_setup})
         return len(self.setup_list) - 1
 
-    def add_question(self, question, answer, online_answer, online_question=None, mcq=None):
+    def add_question(self, question, answer, online_question=None, online_answer=None, mcq=None):
         if online_question is None:
             online_question = latex_to_online(question)
+        if online_answer is None:
+            online_answer = latex_to_online(answer)
         self.question_list.append({
             "question": question,
             "online_question": online_question,
@@ -121,27 +123,6 @@ class GenericProblem:
             "online_answer": online_answer,
             "MCQ": mcq,
         })
-        return len(self.question_list) - 1
-
-    def add_numeric_question(self, question, answer, label=None, online_question=None,
-                             online_answer=None, distractors=None, horz=True, sort=True,
-                             shuffle=False, **distractor_kw):
-        """
-        A question with a single numerical answer. Builds the MCQ from generated distractors.
-        `label` is the LaTeX symbol shown in the online answer, e.g. 'p' -> \\(p = 4\\).
-        """
-        if online_answer is None:
-            online_answer = fr"\({label} = {answer:g}\)" if label else fr"\({answer:g}\)"
-        if distractors is None:
-            distractors = generate_distractors(answer, rng=self.rng, **distractor_kw)
-        mcq = MCQ(question, distractors, 0, horz=horz, shuffle=shuffle, sort=sort,
-                  numerical=True, rng=self.rng)
-        return self.add_question(question, answer, online_answer,
-                                 online_question=online_question, mcq=mcq)
-
-    def add_existing_question(self, question_dict):
-        """Reuse a question built by another problem (e.g. a sub-problem)."""
-        self.question_list.append(question_dict)
         return len(self.question_list) - 1
 
     # --- graphs ---
@@ -160,22 +141,6 @@ class GenericProblem:
         """Register an Axis to be saved as <name>_<suffix>.png by draw_graphs()."""
         self.axes[suffix] = axis
         return axis
-
-    def add_graph_question(self, question, question_image, answer_image, online_question=None):
-        """
-        A question whose prompt shows `question_image` (e.g. a blank grid) and whose
-        answer is `answer_image`. Image args are suffixes registered via add_axis().
-        """
-        tex_q = question
-        if question_image is not None:
-            tex_q = question + "\n" + self.latex_image(question_image)
-        if online_question is None:
-            online_question = latex_to_online(question)
-            if question_image is not None:
-                online_question += f"<p>{self.online_image(question_image)}</p>"
-        return self.add_question(tex_q, self.latex_image(answer_image),
-                                 self.online_image(answer_image),
-                                 online_question=online_question)
 
     def draw_graphs(self, out_dir=None, **draw_kw):
         """Save every registered axis to out_dir (defaults to config.image_dir)."""

@@ -4,7 +4,7 @@ Generate, save, and load the set of valid parameterizations for problem types.
 For a problem class `cls`, the valid set is every dict yielded by
 `cls.candidate_params(rng)` whose built problem passes `check_solution()`.
 Each valid problem contributes one row, `problem.record()` (= params | sol),
-to <data_dir>/<ClassName>.csv (or .pkl, per `cls.data_format`).
+to <data_dir>/<ClassName>.parquet.
 """
 
 import argparse
@@ -51,12 +51,7 @@ def generate(cls, rng=None, verbose=False):
 def save(df, cls, data_dir=None):
     path = data_path(cls, data_dir)
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    if cls.data_format == "csv":
-        df.to_csv(path, header=True, index=False)
-    elif cls.data_format == "pkl":
-        df.to_pickle(path)
-    else:
-        raise ValueError(f"{cls.__name__}: unknown data_format {cls.data_format!r}")
+    df.to_parquet(path)
     return path
 
 
@@ -65,9 +60,7 @@ def load_valid(cls, data_dir=None):
     if not os.path.exists(path):
         raise FileNotFoundError(
             f"{path} not found; generate it first (e.g. python -m problems {cls.__name__})")
-    if cls.data_format == "csv":
-        return pd.read_csv(path)
-    return pd.read_pickle(path)
+    return pd.read_parquet(path)
 
 
 def dependency_order(registry, names):

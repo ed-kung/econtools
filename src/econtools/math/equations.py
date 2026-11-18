@@ -4,7 +4,6 @@ Math formatting and printing functions
 
 import numpy as np
 from sympy import nsimplify
-from .numbers import is_rational
 
 def sign(x):
     # Returns '+' if x is positive, '-' if x is negative, and '' if x is zero
@@ -14,6 +13,13 @@ def sign(x):
         return '-'
     else:
         return ''
+
+def is_rational(x, maxdenom=8):
+    try:
+        d = nsimplify(x).q
+        return (d <= maxdenom)
+    except:
+        return False
 
 def asfrac(x, inline=False, maxdenom=8, rmplus=True, rmneg=False):
     # Returns the string representation of x as a fraction
@@ -81,6 +87,3 @@ class PolyEq:
         return out
     def __repr__(self):
         return self.print()
-
-class ScaledNumber:
-    # Represents a scale factor

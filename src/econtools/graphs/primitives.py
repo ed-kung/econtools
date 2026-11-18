@@ -6,7 +6,8 @@ class Point:
         self.color = color
         self.text = text
         self.position = position
-    def plot(self, ax, xg):
+    def plot(self, ax, xg, labelstyle=None):
+        # labelstyle is accepted for a uniform plot() interface; points use their own text
         x, y = self.x, self.y
         ax.plot(x,y,'o',color=self.color,markersize=12,label='_nolegend_')
         if self.text is not None:
@@ -42,8 +43,17 @@ class Line:
             return ax.plot(xg, self.m*xg + self.b, color=self.color, linewidth=self.linewidth, label=self.label, linestyle=self.linestyle)
         elif labelstyle == 'label':
             plotted = ax.plot(xg, self.m*xg + self.b, color=self.color, linewidth=self.linewidth, label='_nolegend_', linestyle=self.linestyle)
-            x_end = max(xg)
-            y_end = self.eval_at_x(x_end)
+            # place the label at the last point of the line that is inside the plot's y-range
+            xg = np.asarray(xg)
+            yg = self.eval_at_x(xg)
+            ymin, ymax = ax.get_ylim()
+            visible = (yg >= ymin) & (yg <= ymax)
+            if visible.any():
+                x_end = xg[visible].max()
+                y_end = self.eval_at_x(x_end)
+            else:
+                x_end = max(xg)
+                y_end = self.eval_at_x(x_end)
             shift = abs(xg[2] - xg[0]) if len(xg) > 2 else 0
             if self.label not in (None, '_nolegend_'):
                 ax.text(x_end + shift, y_end, self.label, color=self.color, horizontalalignment='left', verticalalignment='center')

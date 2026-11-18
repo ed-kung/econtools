@@ -124,7 +124,7 @@ class MCQ:
     def __init__(self, question, answers, solution=0, horz=False, shuffle=True, sort=False, rng=rng, numerical=False):
         self.question = question
         self.answers = answers
-        self.solution = solution
+        self.solution = solution     # index of the correct answer
         self.horz = horz
         self.numerical = numerical
         

@@ -87,3 +87,11 @@ class PolyEq:
         return out
     def __repr__(self):
         return self.print()
+
+
+# ---- demo
+if __name__ == "__main__":
+    eq = PolyEq([1,0,1,-0.5], 'x', [0,1,2,0.5])
+    print(eq)
+
+

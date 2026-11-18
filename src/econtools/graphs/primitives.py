@@ -43,11 +43,13 @@ class Line:
             return ax.plot(xg, self.m*xg + self.b, color=self.color, linewidth=self.linewidth, label=self.label, linestyle=self.linestyle)
         elif labelstyle == 'label':
             plotted = ax.plot(xg, self.m*xg + self.b, color=self.color, linewidth=self.linewidth, label='_nolegend_', linestyle=self.linestyle)
-            # place the label at the last point of the line that is inside the plot's y-range
+            # place the label at the last point of the line that is at least half a grid length inside the plot's y-range
             xg = np.asarray(xg)
             yg = self.eval_at_x(xg)
             ymin, ymax = ax.get_ylim()
-            visible = (yg >= ymin) & (yg <= ymax)
+            yticks = ax.get_yticks()
+            half_grid = (yticks[1] - yticks[0])/2 if len(yticks) > 1 else 0
+            visible = (yg >= ymin + half_grid) & (yg <= ymax - half_grid)
             if visible.any():
                 x_end = xg[visible].max()
                 y_end = self.eval_at_x(x_end)

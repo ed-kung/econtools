@@ -37,8 +37,19 @@ class Line:
         self.color = color
         self.label = label
         self.linestyle = linestyle
-    def plot(self, ax, xg):
-        return ax.plot(xg, self.m*xg + self.b, color=self.color, linewidth=self.linewidth, label=self.label, linestyle=self.linestyle)
+    def plot(self, ax, xg, labelstyle='legend'):
+        if labelstyle == 'legend':
+            return ax.plot(xg, self.m*xg + self.b, color=self.color, linewidth=self.linewidth, label=self.label, linestyle=self.linestyle)
+        elif labelstyle == 'label':
+            plotted = ax.plot(xg, self.m*xg + self.b, color=self.color, linewidth=self.linewidth, label='_nolegend_', linestyle=self.linestyle)
+            x_end = max(xg)
+            y_end = self.eval_at_x(x_end)
+            shift = abs(xg[2] - xg[0]) if len(xg) > 2 else 0
+            if self.label not in (None, '_nolegend_'):
+                ax.text(x_end + shift, y_end, self.label, color=self.color, horizontalalignment='left', verticalalignment='center')
+            return plotted
+        else:
+            raise ValueError("labelstyle must be 'legend' or 'label'")
     def eval_at_x(self, x):
         return self.m*x + self.b
     def eval_at_y(self, y):

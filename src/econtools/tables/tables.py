@@ -27,5 +27,22 @@ class Table:
         t+= "\\end{tabular}\n"
         t+= "\\end{center}\n"
         return t
+
+    def htmlify(self, solutions=False):
+        t = '<table border=1px align="center">\n'
+        for row in range(self.nrow):
+            t+= "<tr>"
+            for col in range(self.ncol):
+                entry = self.table_data[row][col]
+                if (not solutions) and ((row, col) in self.masked):
+                    cell = "??"
+                elif (solutions) and ((row, col) in self.masked):
+                    cell = f'<span style="color:red">{entry}</span>'
+                else:
+                    cell = entry
+                t+= f"<td>{cell}</td>"
+            t+= "</tr>\n"
+        t+= "</table>"
+        return t
                     
 

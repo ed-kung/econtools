@@ -112,6 +112,9 @@ class GenericProblem:
         return len(self.setup_list) - 1
 
     def add_question(self, question, answer, online_question=None, online_answer=None, mcq=None):
+        answer = format_answer(answer)
+        if online_answer is not None:
+            online_answer = format_answer(online_answer)
         if online_question is None:
             online_question = latex_to_online(question)
         if online_answer is None:
@@ -163,6 +166,25 @@ class GenericProblem:
     def show_questions(self):
         for i, q in enumerate(self.question_list):
             print(f"{i}: {q}")
+
+
+def format_answer(x):
+    """
+    Convert an answer to a display string. Strings pass through unchanged;
+    numbers (Python or numpy) are formatted cleanly: integral floats drop the
+    trailing ".0" and float round-off noise is trimmed.
+    """
+    if isinstance(x, str):
+        return x
+    if isinstance(x, np.generic):
+        x = x.item()
+    if isinstance(x, bool):
+        return str(x)
+    if isinstance(x, float):
+        x = round(x, 10)
+        if x.is_integer():
+            return str(int(x))
+    return str(x)
 
 
 def latex_to_online(tex):

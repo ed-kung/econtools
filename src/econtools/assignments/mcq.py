@@ -90,5 +90,8 @@ def generate_distractors(x, K=4, delta=None, type='add', rng=rng, must_positive=
             continue
         else:
             return answers
-    raise()
+    raise ValueError(
+        f"generate_distractors: could not generate {K} non-negative answers around x={x} "
+        f"(delta={delta}) in {max_tries} tries"
+    )
    

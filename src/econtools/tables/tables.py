@@ -14,7 +14,7 @@ class Table:
         t+= "|} \\hline \n"
         for row in range(self.nrow):
             for col in range(self.ncol):
-                entry = self.table_data[row][col]
+                entry = str(self.table_data[row][col])
                 if (col > 0):
                     t+= " & "
                 if (not solutions) and ((row, col) in self.masked):

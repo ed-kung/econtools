@@ -36,8 +36,10 @@ class Axis:
             ax.set_yticklabels([])
         else:
             # tick i is worth i*scale; str(Scaled) formats it via format_number -> _human (k/m/B/T, $, %)
-            ax.set_xticklabels([str(Scaled(int(i), self.xscale, self.xnumtype)) for i in ax.get_xticks()])
-            ax.set_yticklabels([str(Scaled(int(i), self.yscale, self.ynumtype)) for i in ax.get_yticks()])
+            ax.set_xticklabels([str(Scaled(int(i), self.xscale, self.xnumtype)) for i in ax.get_xticks()],
+                               rotation=self.xrot, ha='right' if self.xrot else 'center',
+                               rotation_mode='anchor' if self.xrot else 'default')
+            ax.set_yticklabels([str(Scaled(int(i), self.yscale, self.ynumtype)) for i in ax.get_yticks()], rotation=self.yrot)
         ax.set_xlim([0, self.xmax])
         ax.set_ylim([0, self.ymax])
         ax.set_xlabel(self.xlab)

@@ -42,6 +42,7 @@ class Line:
         self.label = label
         self.linestyle = linestyle
         self.labelstyle = labelstyle
+        self.labelshift = labelshift
         if plot_x is None:
             self.plot_x = np.arange(0, -b/m, 0.1)
         else:

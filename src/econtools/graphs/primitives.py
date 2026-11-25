@@ -66,4 +66,12 @@ class Line:
         return self.m*x + self.b
     def eval_at_y(self, y):
         return (y-self.b)/self.m
+    
+    @classmethod
+    def from_points(cls, point1 : Point, point2 : Point, **kwargs):
+        if np.isclose(point1.x, point2.x) and np.isclose(point1.y, point2.y):
+            raise ValueError("Points are the same")
+        m = (point2.y - point1.y) / (point2.x - point1.x)
+        b = point1.y - m*point1.x
+        return cls(m, b, **kwargs)
 

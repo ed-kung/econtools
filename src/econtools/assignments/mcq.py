@@ -1,53 +1,75 @@
 import numpy as np
+from econtools.math.scaled import Scaled
 
 rng = np.random.default_rng()
 
 class MCQ:
-    def __init__(self, question, answers, solution=0, horz=False, shuffle=True, sort=False, rng=rng, numerical=False):
+    def __init__(self, question, answers, solution=0, horz=False, shuffle=True, sort=False, rng=rng, numerical=False, scale=None, numtype=''):
         self.question = question     # question setup
-        self.answers = answers       # list of answers
+        self.answers = list(answers) # list of answers (raw values: numbers stay numbers so they sort numerically)
         self.solution = solution     # index of the correct answer
         self.horz = horz             # whether display answers horizontally (default false)
-        self.numerical = numerical   # whether answers are numerical (default false)
-        # sort: whether to sort the answers alphabetically (default false)
+        self.scale = scale           # scale factor to use with Scaled class (answers are then grid values)
+        self.numtype = numtype       # '$' or '%'.  If '$', add dollar prefix.  If '%', convert to percentage and add % suffix.
+        if numtype not in ('', '$', '%'):
+            raise ValueError(f"MCQ: numtype must be '', '$', or '%', got {numtype!r}")
+        # whether answers are numerical (default false); implied by scale or numtype
+        self.numerical = numerical or scale is not None or numtype != ''
+        # sort: whether to sort the answers, numerically if numerical, else alphabetically (default false)
         # shuffle: whether to shuffle the answers (default true)
-        
+
         if sort:
-            self.answers = answers.copy()
-            sortindex = np.argsort(answers)
-            for i in range(len(answers)):
-                self.answers[i] = answers[sortindex[i]]
-            self.solution = sortindex.tolist().index(solution)
+            key = self._numeric_key if self.numerical else (lambda a: a)
+            sortindex = sorted(range(len(self.answers)), key=lambda i: key(self.answers[i]))
+            self.answers = [self.answers[i] for i in sortindex]
+            self.solution = sortindex.index(solution)
         elif shuffle:
             perm = rng.permutation(len(self.answers))
             tempa = self.answers.copy()
             for i in range(len(self.answers)):
                 self.answers[perm[i]] = tempa[i]
             self.solution = perm[self.solution]
-        
-        # Check duplicates
-        if len(self.answers)!=len(set(self.answers)):
-            print(self.answers)
-            print("Error: Duplicate answers!")
-            raise
-    
+
+        # Stringify only after ordering, so prefixes/suffixes/separators don't affect the sort
+        self.answer_strings = [self.format_answer(a) for a in self.answers]
+
+        # Check duplicates on the displayed strings (distinct numbers can format identically)
+        if len(self.answer_strings)!=len(set(self.answer_strings)):
+            raise ValueError(f"MCQ: duplicate answers: {self.answer_strings}")
+
+    @staticmethod
+    def _numeric_key(a):
+        return float(a.real) if isinstance(a, Scaled) else float(a)
+
+    def format_answer(self, a):
+        # Convert a single (raw) answer to its display string
+        if not self.numerical:
+            return str(a)
+        if self.scale is not None and not isinstance(a, Scaled):
+            a = Scaled(a, self.scale)
+        if self.numtype == '%':
+            a = a * 100
+        neg = a < 0
+        if neg:
+            a = -a
+        s = str(a) if isinstance(a, Scaled) else f"{float(a):,g}"
+        if self.numtype == '$':
+            s = "\\$" + s
+        elif self.numtype == '%':
+            s = s + "\\%"
+        return "-" + s if neg else s
+
     def texify(self, solutions=False):
         question = self.question
-        answers = self.answers
+        answers = self.answer_strings
         t = "\\begin{q}\n" + question + "\n\n"
         if self.horz:
             for i in range(len(answers)):
-                myans = answers[i]
-                if self.numerical:
-                    myans = f"{myans:,g}"
-                t+= f"~ {chr(97+i)}) {myans} \n"
+                t+= f"~ {chr(97+i)}) {answers[i]} \n"
         else:
             t+='\\begin{enumerate}[(a)]\n'
             for i in range(len(answers)):
-                myans = answers[i]
-                if self.numerical:
-                    myans = f"{myans:,g}"
-                t+=f"  \\item {myans} \n"
+                t+=f"  \\item {answers[i]} \n"
             t+='\\end{enumerate}\n'
         if solutions:
             t+= f"\n{{\\color{{red}} Answer: {chr(97+self.solution)} }}\n"

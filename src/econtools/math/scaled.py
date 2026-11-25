@@ -23,6 +23,12 @@ def _exact_or_float(x) -> Num:
     else:
         return Fraction(x)
 
+NUMTYPES = ('', '$', '%')
+
+def _check_numtype(numtype: str) -> None:
+    if numtype not in NUMTYPES:
+        raise ValueError(f"numtype must be one of {NUMTYPES}, got {numtype!r}")
+
 def _human(x: Num) -> str:
     # Human readable representation with k/m/B/T suffixes
     v = float(x)
@@ -30,6 +36,33 @@ def _human(x: Num) -> str:
         if abs(v) >= size:
             return f"{v/size:,g}{suffix}"
     return f"{v:,g}"
+
+def format_number(x: Num, numtype: str = '', human: bool = True) -> str:
+    # Display string for a number:
+    #   numtype '$': '$' prefix (sign goes in front: -$5)
+    #   numtype '%': value converted to a percentage with '%' suffix; never uses k/m/B/T
+    #   human: use k/m/B/T suffixes (ignored for '%'); otherwise plain thousands separators
+    _check_numtype(numtype)
+    v = float(x)
+    if numtype == '%':
+        v *= 100
+        human = False
+    sign = '-' if v < 0 else ''
+    v = abs(v)
+    s = _human(v) if human else f"{v:,g}"
+    if numtype == '$':
+        s = '$' + s
+    elif numtype == '%':
+        s = s + '%'
+    return sign + s
+
+def _combine(a: str, b: str) -> str:
+    # numtype of a result: shared numtype, or the one that is set; '' if they conflict
+    if a == b or not b:
+        return a
+    if not a:
+        return b
+    return ''
 
 def _equals(a: Num, b: Num) -> bool:
     # Exact comparison or within tolerance
@@ -41,8 +74,10 @@ def _equals(a: Num, b: Num) -> bool:
 class Scaled:
     grid: Num              # grid value on a graph
     scale: Num = 1         # scale factor (what one grid tick is worth)
+    numtype: str = ''      # '' (plain), '$' (dollar prefix), or '%' (percentage with % suffix)
 
     def __post_init__(self):
+        _check_numtype(self.numtype)
         # ints/Fractions/strings -> exact Fraction; floats stay floats
         object.__setattr__(self, "grid", _exact_or_float(self.grid))
         object.__setattr__(self, "scale", _exact_or_float(self.scale))
@@ -65,7 +100,7 @@ class Scaled:
         o = self._coerce(other)
         if o is NotImplemented:
             return o
-        return Scaled(self.grid * o.grid, self.scale * o.scale)
+        return Scaled(self.grid * o.grid, self.scale * o.scale, _combine(self.numtype, o.numtype))
     __rmul__ = __mul__
 
     # Division
@@ -73,7 +108,7 @@ class Scaled:
         o = self._coerce(other)
         if o is NotImplemented:
             return o
-        return Scaled(self.grid / o.grid, self.scale / o.scale)
+        return Scaled(self.grid / o.grid, self.scale / o.scale, _combine(self.numtype, o.numtype))
     
     def __rtruediv__(self, other):
         o = self._coerce(other)
@@ -83,16 +118,16 @@ class Scaled:
     
     # Powers
     def __pow__(self, n):
-        return Scaled(self.grid ** n, self.scale ** n)
+        return Scaled(self.grid ** n, self.scale ** n, self.numtype)
 
     # Negation
     def __neg__(self):
-        return Scaled(-self.grid, self.scale)
+        return Scaled(-self.grid, self.scale, self.numtype)
     
     # Addition and subtraction 
     def _from_real(self, real: Num, o: Scaled) -> Scaled:
         scale = max(self.scale, o.scale)
-        return Scaled(real / scale, scale)
+        return Scaled(real / scale, scale, _combine(self.numtype, o.numtype))
     
     def __add__(self, other):
         o = self._coerce(other)
@@ -155,10 +190,12 @@ class Scaled:
     
     # Display
     def __repr__(self):
+        if self.numtype:
+            return f"Scaled({self.grid}, {self.scale}, {self.numtype!r})"
         return f"Scaled({self.grid}, {self.scale})"
 
     def __str__(self):
-        return _human(self.real)
+        return format_number(self.real, self.numtype, human=True)
 
 
 # ---- Demo

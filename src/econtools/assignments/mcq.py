@@ -1,5 +1,5 @@
 import numpy as np
-from econtools.math.scaled import Scaled
+from econtools.math.scaled import Scaled, format_number, _check_numtype
 
 rng = np.random.default_rng()
 
@@ -10,11 +10,11 @@ class MCQ:
         self.solution = solution     # index of the correct answer
         self.horz = horz             # whether display answers horizontally (default false)
         self.scale = scale           # scale factor to use with Scaled class (answers are then grid values)
-        self.numtype = numtype       # '$' or '%'.  If '$', add dollar prefix.  If '%', convert to percentage and add % suffix.
-        if numtype not in ('', '$', '%'):
-            raise ValueError(f"MCQ: numtype must be '', '$', or '%', got {numtype!r}")
-        # whether answers are numerical (default false); implied by scale or numtype
-        self.numerical = numerical or scale is not None or numtype != ''
+        self.numtype = numtype       # passed to Scaled: '$' adds dollar prefix; '%' converts to percentage with % suffix
+        _check_numtype(numtype)
+        # whether answers are numerical (default false); implied by scale, numtype, or Scaled answers
+        self.numerical = (numerical or scale is not None or numtype != ''
+                          or any(isinstance(a, Scaled) for a in self.answers))
         # sort: whether to sort the answers, numerically if numerical, else alphabetically (default false)
         # shuffle: whether to shuffle the answers (default true)
 
@@ -42,22 +42,19 @@ class MCQ:
         return float(a.real) if isinstance(a, Scaled) else float(a)
 
     def format_answer(self, a):
-        # Convert a single (raw) answer to its display string
+        # Convert a single (raw) answer to its LaTeX display string.
+        # Formatting (k/m/B/T, $ prefix, % suffix) lives in econtools.math.scaled.
         if not self.numerical:
             return str(a)
-        if self.scale is not None and not isinstance(a, Scaled):
-            a = Scaled(a, self.scale)
-        if self.numtype == '%':
-            a = a * 100
-        neg = a < 0
-        if neg:
-            a = -a
-        s = str(a) if isinstance(a, Scaled) else f"{float(a):,g}"
-        if self.numtype == '$':
-            s = "\\$" + s
-        elif self.numtype == '%':
-            s = s + "\\%"
-        return "-" + s if neg else s
+        if isinstance(a, Scaled):
+            if self.numtype and a.numtype != self.numtype:
+                a = Scaled(a.grid, a.scale, self.numtype)
+            s = str(a)
+        elif self.scale is not None:
+            s = str(Scaled(a, self.scale, self.numtype))
+        else:
+            s = format_number(a, self.numtype, human=False)
+        return s.replace('$', '\\$').replace('%', '\\%')
 
     def texify(self, solutions=False):
         question = self.question

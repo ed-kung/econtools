@@ -5,13 +5,12 @@ from econtools.math.equations import PolyEq
 class LinearDemand:
     # p = a - b*q
     # q = (a/b) - (1/b)*p
-    def __init__(self, a=12, b=1, color='black', linewidth=1, label='_nolegend_', linestyle='solid', labelstyle='label'):
+    def __init__(self, a=12, b=1, **kwargs):
         assert a > 0
         assert b > 0
         self.a = a
         self.b = b
-        self.line = Line(-b, a, linewidth=linewidth, color=color, label=label, linestyle=linestyle)
-        self.labelstyle = labelstyle
+        self.line = Line(-b, a, **kwargs)
     def print(self, x='p', maxdenom=8):
         return PolyEq(c=[self.a/self.b, -1/self.b], x=x, p=[0,1]).print(maxdenom=maxdenom, rmplus=True)
     def print_inverse(self, x='q', maxdenom=8):
@@ -20,8 +19,8 @@ class LinearDemand:
         return self.a/self.b - (1/self.b)*p
     def eval_at_q(self, q):
         return self.a - self.b*q
-    def plot(self, ax, xg):
-        return self.line.plot(ax, xg, labelstyle=self.labelstyle)
+    def plot(self, ax):
+        return self.line.plot(ax)
     @classmethod
     def from_points(cls, point1 : Point, point2 : Point, **kwargs):
         if np.isclose(point1.x, point2.x) and np.isclose(point1.y, point2.y):
@@ -33,13 +32,12 @@ class LinearDemand:
 class LinearSupply:
     # p = a + b*q
     # q = (1/b)*p - (a/b)
-    def __init__(self, a=1, b=1, color='black', linewidth=1, label='_nolegend_', linestyle='solid', labelstyle='label'):
+    def __init__(self, a=1, b=1, **kwargs):
         assert a >= 0
         assert b >= 0
         self.a = a
         self.b = b
-        self.line = Line(b, a, linewidth=linewidth, color=color, label=label, linestyle=linestyle)
-        self.labelstyle = labelstyle
+        self.line = Line(b, a, **kwargs)
     def print(self, x='p', maxdenom=8):
         return PolyEq(c=[1/self.b, -a/self.b], x=x, p=[1,0]).print(maxdenom=maxdenom, rmplus=True)
     def print_inverse(self, x='q', maxdenom=8):
@@ -51,8 +49,8 @@ class LinearSupply:
             return np.inf
     def eval_at_q(self, q):
         return self.a + self.b*q
-    def plot(self, ax, xg):
-        return self.line.plot(ax, xg, labelstyle=self.labelstyle)
+    def plot(self, ax):
+        return self.line.plot(ax)
     @classmethod
     def from_points(cls, point1 : Point, point2 : Point, **kwargs):
         if np.isclose(point1.x, point2.x) and np.isclose(point1.y, point2.y):

@@ -1,16 +1,19 @@
 import numpy as np
 from matplotlib import pyplot as plt
+from econtools.math.scaled import Scaled, _check_numtype
 
 class Axis:
-    def __init__(self, xn=13, yn=13, xscale=1, yscale=1, xlab=r'$q$', ylab=r'$p$', xprefix='', yprefix=r'\$', xrot=0, yrot=0, noticklabels=False, nogridlines=False, title=None):
+    def __init__(self, xn=13, yn=13, xscale=1, yscale=1, xlab=r'$q$', ylab=r'$p$', xnumtype='', ynumtype='$', xrot=0, yrot=0, noticklabels=False, nogridlines=False, title=None):
         self.xn = xn                      # number of grid points on x axis
         self.yn = yn                      # number of grid points on y axis
         self.xscale = xscale              # scale factor of x axis (how many units per grid point)
         self.yscale = yscale              # scale factor of y axis (how many units per grid point)
         self.xlab = xlab                  # label of x axis
         self.ylab = ylab                  # label of y axis
-        self.xprefix = xprefix            # prefix of x axis (e.g. '$' for dollars)
-        self.yprefix = yprefix            # prefix of y axis (e.g. '$' for dollars)
+        _check_numtype(xnumtype)
+        _check_numtype(ynumtype)
+        self.xnumtype = xnumtype          # numtype of x tick labels: '' (plain), '$' (dollars), or '%' (percentage)
+        self.ynumtype = ynumtype          # numtype of y tick labels: '' (plain), '$' (dollars), or '%' (percentage)
         self.xrot = xrot                  # rotation angle of x axis labels
         self.yrot = yrot                  # rotation angle of y axis labels
         self.noticklabels = noticklabels  # whether to hide tick labels (default false)
@@ -30,6 +33,10 @@ class Axis:
         if self.noticklabels:
             ax.set_xticklabels([])
             ax.set_yticklabels([])
+        else:
+            # tick i is worth i*scale; str(Scaled) formats it via format_number -> _human (k/m/B/T, $, %)
+            ax.set_xticklabels([str(Scaled(i, self.xscale, self.xnumtype)) for i in range(len(ax.get_xticks()))])
+            ax.set_yticklabels([str(Scaled(i, self.yscale, self.ynumtype)) for i in range(len(ax.get_yticks()))])
         ax.set_xlim([0, self.xmax])
         ax.set_ylim([0, self.ymax])
         ax.set_xlabel(self.xlab)

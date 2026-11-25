@@ -18,7 +18,6 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 from matplotlib import pyplot as plt
-from matplotlib.ticker import FuncFormatter
 
 plt.rcParams['figure.figsize'] = (6, 6)
 
@@ -28,7 +27,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(TESTS_DIR), "src"))
 from econtools.graphs.axis import Axis
 from econtools.graphs.primitives import Line
 from econtools.math.scaled import Scaled
-from econtools.assignments.latex import Exam, Multipart, MCQ, RawLatex, generate_distractors
+from econtools.assignments.latex import Exam, Multipart, RawLatex
+from econtools.assignments.mcq import MCQ, generate_distractors
 
 PSCALE = 5            # $5 per grid point
 QSCALE = 1_000_000    # 1M units per grid point
@@ -54,15 +54,15 @@ def solve_equilibrium():
     return p, q, (bd, md), (bs, ms)
 
 
-def draw_diagram(demand, supply, saveas):
+def draw_diagram(saveas):
+    # the axis plots in grid units; its scales only relabel the ticks
     axis = Axis(xn=N, yn=N, xscale=QSCALE, yscale=PSCALE,
                 xlab="Quantity (units)", ylab="Price")
-    for (b, m), label, color in ((demand, "Demand", "tab:blue"), (supply, "Supply", "tab:red")):
-        axis.add(Line(float(m.real), float(b.real), linewidth=2, color=color, label=label))
+    for (b, m), label, color in (((D_INTERCEPT, D_SLOPE), "Demand", "tab:blue"),
+                                 ((S_INTERCEPT, S_SLOPE), "Supply", "tab:red")):
+        axis.add(Line(m, b, linewidth=2, color=color, label=label))
 
     fig, ax = axis.draw(labelstyle="label")
-    ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: str(Scaled(round(v / QSCALE), QSCALE))))
-    ax.yaxis.set_major_formatter(FuncFormatter(lambda v, _: f"${v:,g}"))
 
     fig.savefig(saveas, bbox_inches="tight")
     plt.close(fig)
@@ -100,7 +100,7 @@ def main():
     assert str(p) == "35" and str(q) == "5m"
 
     figure_file = "supply_demand.pdf"
-    draw_diagram(demand, supply, os.path.join(TESTS_DIR, figure_file))
+    draw_diagram(os.path.join(TESTS_DIR, figure_file))
     assert os.path.exists(os.path.join(TESTS_DIR, figure_file))
 
     rng = np.random.default_rng(0)

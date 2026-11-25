@@ -19,8 +19,9 @@ class Axis:
         self.noticklabels = noticklabels  # whether to hide tick labels (default false)
         self.nogridlines = nogridlines    # whether to hide grid lines (default false)
         self.title = title                # title of the graph (default none)
-        self.xmax = xn*xscale
-        self.ymax = yn*yscale
+        # the plot itself is in grid units (1 unit per grid point); scales only affect tick labels
+        self.xmax = xn
+        self.ymax = yn
         self.objects = []
     def add(self, *args):
         # add objects to the axis
@@ -28,15 +29,15 @@ class Axis:
             self.objects.append(obj)
     def get_figax(self, alpha=0.6, saveas=None):
         fig, ax = plt.subplots()
-        ax.set_xticks(np.arange(0, self.xmax, self.xscale))
-        ax.set_yticks(np.arange(0, self.ymax, self.yscale))
+        ax.set_xticks(np.arange(0, self.xmax, 1))
+        ax.set_yticks(np.arange(0, self.ymax, 1))
         if self.noticklabels:
             ax.set_xticklabels([])
             ax.set_yticklabels([])
         else:
             # tick i is worth i*scale; str(Scaled) formats it via format_number -> _human (k/m/B/T, $, %)
-            ax.set_xticklabels([str(Scaled(i, self.xscale, self.xnumtype)) for i in range(len(ax.get_xticks()))])
-            ax.set_yticklabels([str(Scaled(i, self.yscale, self.ynumtype)) for i in range(len(ax.get_yticks()))])
+            ax.set_xticklabels([str(Scaled(int(i), self.xscale, self.xnumtype)) for i in ax.get_xticks()])
+            ax.set_yticklabels([str(Scaled(int(i), self.yscale, self.ynumtype)) for i in ax.get_yticks()])
         ax.set_xlim([0, self.xmax])
         ax.set_ylim([0, self.ymax])
         ax.set_xlabel(self.xlab)
@@ -52,7 +53,7 @@ class Axis:
     def draw(self, alpha=0.6, legend=None, saveas=None, labelstyle='legend'):
         # labelstyle: 'legend' puts line labels in the legend, 'label' writes them at the end of each line
         fig, ax = self.get_figax(alpha=alpha)
-        xg = np.arange(0, self.xmax + self.xscale/20, self.xscale/10)
+        xg = np.arange(0, self.xmax + 1/20, 1/10)
         for obj in self.objects:
             obj.plot(ax, xg, labelstyle=labelstyle)
         if legend:

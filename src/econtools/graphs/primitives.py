@@ -1,17 +1,20 @@
 import numpy as np
 
 class Point:
-    def __init__(self, x, y, color='black',text=None, position=None):
+    def __init__(self, x, y, color='black',text=None, position=None, label='_nolegend_', markersize=12, labelshift=0.2):
         self.x, self.y = x, y
         self.color = color
         self.text = text
         self.position = position
-    def plot(self, ax, xg, labelstyle=None):
+        self.label = label
+        self.markersize = markersize
+        self.labelshift = labelshift
+    def plot(self, ax):
         # labelstyle is accepted for a uniform plot() interface; points use their own text
         x, y = self.x, self.y
-        ax.plot(x,y,'o',color=self.color,markersize=12,label='_nolegend_')
+        ax.plot(x,y,'o', color=self.color, markersize=self.markersize, label=self.label)
         if self.text is not None:
-            shift = xg[2]-xg[0]
+            shift = self.labelshift
             text_x = x
             text_y = y
             horizontalalignment = 'center'
@@ -32,16 +35,22 @@ class Point:
 class Line:
     # y = mx + b
     # x = (y-b)/m
-    def __init__(self, m, b, linewidth=1, color='black', label='_nolegend_', linestyle='solid'):
+    def __init__(self, m, b, linewidth=1, color='black', label='_nolegend_', linestyle='solid', plot_x=None, labelstyle='label', labelshift=0.2):
         self.m, self.b = m, b
         self.linewidth = linewidth
         self.color = color
         self.label = label
         self.linestyle = linestyle
-    def plot(self, ax, xg, labelstyle='legend'):
-        if labelstyle == 'legend':
+        self.labelstyle = labelstyle
+        if plot_x is None:
+            self.plot_x = np.arange(0, -b/m, 0.1)
+        else:
+            self.plot_x = plot_x
+    def plot(self, ax):
+        xg = self.plot_x
+        if self.labelstyle == 'legend':
             return ax.plot(xg, self.m*xg + self.b, color=self.color, linewidth=self.linewidth, label=self.label, linestyle=self.linestyle)
-        elif labelstyle == 'label':
+        elif self.labelstyle == 'label':
             plotted = ax.plot(xg, self.m*xg + self.b, color=self.color, linewidth=self.linewidth, label='_nolegend_', linestyle=self.linestyle)
             # place the label at the last point of the line that is at least half a grid length inside the plot's y-range
             xg = np.asarray(xg)
@@ -56,7 +65,7 @@ class Line:
             else:
                 x_end = max(xg)
                 y_end = self.eval_at_x(x_end)
-            shift = abs(xg[2] - xg[0]) if len(xg) > 2 else 0
+            shift = self.labelshift
             if self.label not in (None, '_nolegend_'):
                 ax.text(x_end + shift, y_end, self.label, color=self.color, horizontalalignment='left', verticalalignment='center')
             return plotted

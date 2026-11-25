@@ -50,12 +50,11 @@ class Axis:
         if saveas is not None:
             plt.savefig(saveas, bbox_inches='tight')
         return fig, ax
-    def draw(self, alpha=0.6, legend=None, saveas=None, labelstyle='legend'):
+    def draw(self, alpha=0.6, legend=None, saveas=None):
         # labelstyle: 'legend' puts line labels in the legend, 'label' writes them at the end of each line
         fig, ax = self.get_figax(alpha=alpha)
-        xg = np.arange(0, self.xmax + 1/20, 1/10)
         for obj in self.objects:
-            obj.plot(ax, xg, labelstyle=labelstyle)
+            obj.plot(ax)
         if legend:
             ax.legend()
         if saveas is not None:

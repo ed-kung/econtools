@@ -21,6 +21,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from econtools.assignments.mcq import MCQ, generate_distractors
+from econtools.math.scaled import Scaled
 
 
 @dataclass
@@ -127,6 +128,19 @@ class GenericProblem:
             "MCQ": mcq,
         })
         return len(self.question_list) - 1
+
+    def add_numeric_question(self, question, answer, rng, scale=1, numtype='', K=4,
+                             online_question=None, **mcq_kw):
+        """
+        Add a numerical question with K generated distractors. Answers are shown
+        multiplied by `scale` and formatted by `numtype` ('' or '$', etc.).
+        Extra keyword arguments override the MCQ defaults (sort, horz, ...).
+        """
+        answers = generate_distractors(answer, K=K, rng=rng)
+        opts = dict(solution=0, shuffle=False, sort=True, numerical=True, horz=True) | mcq_kw
+        mcq = MCQ(question, answers, rng=rng, scale=scale, numtype=numtype, **opts)
+        return self.add_question(question, answer=answer, online_question=online_question,
+                                 online_answer=str(Scaled(answer, scale, numtype)), mcq=mcq)
 
     # --- graphs ---
     def image_filename(self, suffix):

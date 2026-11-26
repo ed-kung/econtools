@@ -31,6 +31,7 @@ class LinearDemand:
         slope = (point2.y - point1.y) / (point2.x - point1.x)
         intercept = point1.y - slope*point1.x
         return cls(a=intercept, b=-slope, **kwargs)
+    @classmethod
     def from_point_slope(cls, point : Point, slope : float, **kwargs):
         return cls(a=point.y - slope*point.x, b=-slope, **kwargs)
 
@@ -65,6 +66,7 @@ class LinearSupply:
         slope = (point2.y - point1.y) / (point2.x - point1.x)
         intercept = point1.y - slope*point1.x
         return cls(a=intercept, b=slope, **kwargs)
+    @classmethod
     def from_point_slope(cls, point : Point, slope : float, **kwargs):
         return cls(a=point.y - slope*point.x, b=slope, **kwargs)
 

@@ -84,4 +84,6 @@ class Line:
         m = (point2.y - point1.y) / (point2.x - point1.x)
         b = point1.y - m*point1.x
         return cls(m, b, **kwargs)
+    def from_point_slope(cls, point : Point, slope : float, **kwargs):
+        return cls(slope, point.y - slope*point.x, **kwargs)
 

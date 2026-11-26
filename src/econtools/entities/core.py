@@ -186,19 +186,31 @@ class Person(Entity):
 class Good(Entity):
     """
     A good. CSV: goods.csv
-        (singular, plural, tags, pscale, qscale, pmin, pmax, qmin, qmax, article)
+        (market, singular, plural, tags, pscale, qscale, pmin, pmax, qmin, qmax, article)
+
+    market is the name of the good overall ("the market for coffee"); singular and
+    plural name its unit ("$20 per bag", "3 bags"). market is the key used by get().
 
     pscale/qscale are the good's typical price and quantity per unit (e.g. per grid
     unit of a graph axis, or for Scaled). pmin..pmax and qmin..qmax are integer
     ranges, in those units, for drawing a random price or quantity:
         good.random_price(rng)  ==  rng.integers(pmin, pmax + 1) * pscale
-    Blank cells use DEFAULTS. article overrides the computed a/an.
+    Blank cells use DEFAULTS. article overrides the computed a/an for the unit.
+
+    Unit phrases (coffee: bag/bags; cars: car/cars):
+        good.unit        'bag of coffee'   'car'
+        good.units       'bags of coffee'  'cars'
+        good.a           'a bag of coffee' 'a car'
+        good.amount(3)   '3 bags of coffee' ;  good.amount(3, full=False) -> '3 bags'
+    The "of <market>" is left off when the unit already names the good, i.e. when
+    market starts with singular (cars/car, pizza/pizza, USB sticks/USB stick).
     """
     csv_name: ClassVar[str] = "goods.csv"
-    key_field: ClassVar[str] = "singular"
+    key_field: ClassVar[str] = "market"
     DEFAULTS: ClassVar[dict] = {"pscale": 1, "qscale": 1, "pmin": 1, "pmax": 10, "qmin": 1, "qmax": 10}
 
-    singular: str
+    market: str
+    singular: str = ""
     plural: str = ""
     pscale: float = 1
     qscale: float = 1
@@ -209,13 +221,17 @@ class Good(Entity):
     article: str = ""
 
     def __post_init__(self):
+        if not self.singular:
+            object.__setattr__(self, "singular", self.market)
+        if not self.plural:
+            object.__setattr__(self, "plural", self.singular + "s")
         if self.pmin > self.pmax or self.qmin > self.qmax:
-            raise ValueError(f"Good {self.singular!r}: need pmin <= pmax and qmin <= qmax")
+            raise ValueError(f"Good {self.market!r}: need pmin <= pmax and qmin <= qmax")
 
     @classmethod
     def _from_row(cls, row):
         nums = {k: _num(row[k]) if row.get(k) else v for k, v in cls.DEFAULTS.items()}
-        return cls(singular=row["singular"], plural=row.get("plural") or row["singular"] + "s",
+        return cls(market=row["market"], singular=row.get("singular", ""), plural=row.get("plural", ""),
                    article=row.get("article", ""), **nums)
 
     def random_price(self, rng):
@@ -226,11 +242,33 @@ class Good(Entity):
         """A random quantity: an integer in [qmin, qmax] times qscale."""
         return int(rng.integers(self.qmin, self.qmax + 1)) * self.qscale
 
+    # --- unit phrases ---
+    @property
+    def _unit_names_good(self):
+        return self.market.lower().startswith(self.singular.lower())
+
+    @property
+    def unit(self):
+        """'bag of coffee', or just 'car' when the unit already names the good."""
+        return self.singular if self._unit_names_good else f"{self.singular} of {self.market}"
+
+    @property
+    def units(self):
+        """'bags of coffee', or just 'cars' when the unit already names the good."""
+        return self.plural if self._unit_names_good else f"{self.plural} of {self.market}"
+
     @property
     def a(self):
-        """'a car', 'an apple' (article column overrides)."""
+        """'a bag of coffee', 'a car', 'an apple' (article column overrides a/an)."""
         art = self.article or ("an" if self.singular[:1].lower() in "aeiou" else "a")
-        return f"{art} {self.singular}"
+        return f"{art} {self.unit}"
+
+    def amount(self, n, full=True):
+        """'1 bag of coffee', '3 bags of coffee'; full=False gives '3 bags'."""
+        one = n == 1
+        if full:
+            return f"{n} {self.unit if one else self.units}"
+        return f"{n} {self.singular if one else self.plural}"
 
 
 @dataclass(frozen=True)

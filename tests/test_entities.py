@@ -24,7 +24,7 @@ def test_load_and_tags():
     for cls in (Person, Good, Country, Firm, City):
         assert len(cls.rows()) > 0, cls
     foods = Good.keys(tags="food")
-    assert "pizza" in foods and "widget" not in foods
+    assert "pizza" in foods and "widgets" not in foods
     assert set(Firm.keys(tags="car-lot")) == {"Stan's Used Car Rentals", "Bob's Car Emporium", "Kenny's Car Lot"}
     assert Good.keys(tags=["food", "market"]) == []
 
@@ -56,8 +56,8 @@ def test_sample():
 
 def test_good_scales_and_ranges():
     coffee = Good.get("coffee")
-    assert (coffee.plural, coffee.pscale, coffee.qscale) == ("coffee", 5, 10000)
-    car = Good.get("car")
+    assert (coffee.singular, coffee.plural, coffee.pscale) == ("bag", "bags", 5)
+    car = Good.get("cars")
     assert (car.pmin, car.pmax, car.pscale) == (2, 7, 10000)
     rng = np.random.default_rng(1)
     prices = {car.random_price(rng) for _ in range(500)}
@@ -71,7 +71,13 @@ def test_good_scales_and_ranges():
         raise AssertionError("expected ValueError")
     except ValueError:
         pass
-    assert Good.get("car").a == "a car" and Good.get("ice cream scoop").a == "an ice cream scoop"
+    assert (coffee.unit, coffee.units, coffee.a) == ("bag of coffee", "bags of coffee", "a bag of coffee")
+    assert (car.unit, car.units, car.a) == ("car", "cars", "a car")
+    assert coffee.amount(1) == "1 bag of coffee" and coffee.amount(3) == "3 bags of coffee"
+    assert coffee.amount(3, full=False) == "3 bags" and car.amount(2) == "2 cars"
+    assert Good.get("pizza").units == "pizzas" and Good.get("USB sticks").unit == "USB stick"
+    assert Good.get("ice cream").a == "a scoop of ice cream"
+    assert Good("apples", "apple").a == "an apple"
 
 
 def test_pronouns():
@@ -86,7 +92,7 @@ def test_pronouns():
 class ToyProblem(GenericProblem):
     default_params = {
         "person": Person.get("Anna"),
-        "goods": (Good.get("pizza"), Good.get("cake")),
+        "goods": (Good.get("pizza"), Good.get("cakes")),
         "rate": 1,
     }
 

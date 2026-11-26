@@ -124,6 +124,19 @@ def test_parquet_round_trip():
     assert isinstance(ToyProblem().params["person"], Person)
 
 
+def test_mutable():
+    g = Good.get("coffee")
+    g.pscale, g.qscale = 50, 100
+    assert (g.pscale, g.qscale) == (50, 100)
+    assert Good.get("coffee").pscale == 5, "get() must return a fresh instance"
+
+    class Edits(ToyProblem):
+        def build(self, rng):
+            self.params["person"].name = "Changed"
+    Edits()
+    assert ToyProblem.default_params["person"].name == "Anna", "defaults must not be shared"
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_") and callable(fn):

@@ -21,6 +21,7 @@ params, any key whose *default* is an entity (or a sequence of entities) is
 converted back to that entity class.
 """
 
+import copy
 import os
 from dataclasses import dataclass, field
 
@@ -115,7 +116,7 @@ class GenericProblem:
 
     # --- params ---
     def _merge_params(self, params):
-        defaults = dict(self.default_params)
+        defaults = copy.deepcopy(self.default_params)   # entities are mutable; never share defaults
         if not params:
             return defaults
         return {k: _restore_entities(params.get(k, v), v) for k, v in defaults.items()}

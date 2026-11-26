@@ -15,7 +15,8 @@ entry. Cells holding several values (tags) separate them with ';'.
     f"{person.name} sells {g1.plural} to {person.possessive} friends"
 
 Sampling only uses the numpy Generator passed in, so seeded generation is
-reproducible. Entities are frozen dataclasses; to_dict()/from_dict() convert
+reproducible. Entities are plain (mutable) dataclasses, so e.g. good.pscale can be
+edited directly; each get()/sample() returns a fresh instance. to_dict()/from_dict() convert
 them to plain data, which GenericProblem uses to store them in parquet.
 """
 
@@ -53,7 +54,7 @@ def _tag_set(tags):
     return set(tags)
 
 
-@dataclass(frozen=True)
+@dataclass
 class Entity:
     csv_name: ClassVar[str] = ""
     key_field: ClassVar[str] = "name"
@@ -149,7 +150,7 @@ PRONOUNS = {
 }
 
 
-@dataclass(frozen=True)
+@dataclass
 class Person(Entity):
     """A person. CSV: people.csv (name, pronouns, tags); pronouns is he/she/they."""
     csv_name: ClassVar[str] = "people.csv"
@@ -182,7 +183,7 @@ class Person(Entity):
         return PRONOUNS[self.pronouns][4]
 
 
-@dataclass(frozen=True)
+@dataclass
 class Good(Entity):
     """
     A good. CSV: goods.csv
@@ -222,9 +223,9 @@ class Good(Entity):
 
     def __post_init__(self):
         if not self.singular:
-            object.__setattr__(self, "singular", self.market)
+            self.singular = self.market
         if not self.plural:
-            object.__setattr__(self, "plural", self.singular + "s")
+            self.plural = self.singular + "s"
         if self.pmin > self.pmax or self.qmin > self.qmax:
             raise ValueError(f"Good {self.market!r}: need pmin <= pmax and qmin <= qmax")
 
@@ -271,7 +272,7 @@ class Good(Entity):
         return f"{n} {self.singular if one else self.plural}"
 
 
-@dataclass(frozen=True)
+@dataclass
 class Country(Entity):
     """A country. CSV: countries.csv (name, adjective, tags)."""
     csv_name: ClassVar[str] = "countries.csv"
@@ -279,14 +280,14 @@ class Country(Entity):
     adjective: str = ""
 
 
-@dataclass(frozen=True)
+@dataclass
 class Firm(Entity):
     """A firm. CSV: firms.csv (name, tags)."""
     csv_name: ClassVar[str] = "firms.csv"
     name: str
 
 
-@dataclass(frozen=True)
+@dataclass
 class City(Entity):
     """A city. CSV: cities.csv (name, country, tags)."""
     csv_name: ClassVar[str] = "cities.csv"

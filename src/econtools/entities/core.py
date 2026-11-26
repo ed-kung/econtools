@@ -1,0 +1,255 @@
+"""
+Named things for auto-generated problems: people, goods, countries, firms, cities.
+
+The possible values of each class live in a CSV file under ./data, one row per
+entry. Cells holding several values (tags, scales) separate them with ';'.
+
+    from econtools.entities import Person, Good
+
+    person = Person.sample(rng)                          # one random person
+    g1, g2 = Good.sample(rng, 2, tags="food")            # two distinct foods
+    other = Person.sample(rng, exclude=[person])         # never the same as person
+    widget = Good.get("widget")                          # a specific entry
+
+    f"{person.name} sells {g1.plural} to {person.possessive} friends"
+
+Sampling only uses the numpy Generator passed in, so seeded generation is
+reproducible. Entities are frozen dataclasses; to_dict()/from_dict() convert
+them to plain data, which GenericProblem uses to store them in parquet.
+"""
+
+import csv
+import dataclasses
+from dataclasses import dataclass
+from pathlib import Path
+from typing import ClassVar
+
+import numpy as np
+
+DATA_DIR = Path(__file__).parent / "data"
+
+
+def _split(cell):
+    """'a; b;c' -> ['a', 'b', 'c']; blank -> []."""
+    return [x.strip() for x in (cell or "").split(";") if x.strip()]
+
+
+def _num(s):
+    x = float(s)
+    return int(x) if x.is_integer() else x
+
+
+def _plain(x):
+    """numpy scalars -> Python scalars (parquet round trips return numpy types)."""
+    return x.item() if isinstance(x, np.generic) else x
+
+
+def _tag_set(tags):
+    if tags is None:
+        return set()
+    if isinstance(tags, str):
+        return {tags}
+    return set(tags)
+
+
+@dataclass(frozen=True)
+class Entity:
+    csv_name: ClassVar[str] = ""
+    key_field: ClassVar[str] = "name"
+    _cache: ClassVar[dict] = {}
+
+    # --- data ---
+    @classmethod
+    def csv_path(cls):
+        return DATA_DIR / cls.csv_name
+
+    @classmethod
+    def _all_rows(cls):
+        if cls not in Entity._cache:
+            with open(cls.csv_path(), newline="", encoding="utf-8") as f:
+                rows = [{k.strip(): (v or "").strip() for k, v in row.items()}
+                        for row in csv.DictReader(f)]
+            rows = [r for r in rows if r.get(cls.key_field)]
+            keys = [r[cls.key_field] for r in rows]
+            dupes = {k for k in keys if keys.count(k) > 1}
+            if dupes:
+                raise ValueError(f"{cls.csv_path()}: duplicate {cls.key_field} {sorted(dupes)}")
+            Entity._cache[cls] = rows
+        return Entity._cache[cls]
+
+    @classmethod
+    def reload(cls):
+        """Forget cached CSV contents (e.g. after editing a CSV in a live session)."""
+        Entity._cache.pop(cls, None)
+
+    @classmethod
+    def rows(cls, tags=None):
+        """CSV rows (dicts of strings) carrying all of the given tags."""
+        want = _tag_set(tags)
+        return [r for r in cls._all_rows() if want <= set(_split(r.get("tags")))]
+
+    @classmethod
+    def keys(cls, tags=None):
+        return [r[cls.key_field] for r in cls.rows(tags)]
+
+    @classmethod
+    def _from_row(cls, row, rng=None):
+        """Build an instance from a CSV row. Override when a row needs choices/parsing."""
+        names = {f.name for f in dataclasses.fields(cls)}
+        return cls(**{k: v for k, v in row.items() if k in names})
+
+    # --- construction ---
+    @classmethod
+    def get(cls, key, rng=None):
+        """The entry whose key field equals `key`. rng picks any random attributes."""
+        for r in cls._all_rows():
+            if r[cls.key_field] == key:
+                return cls._from_row(r, rng)
+        raise KeyError(f"{cls.__name__}: no entry {key!r} in {cls.csv_path()}")
+
+    @classmethod
+    def sample(cls, rng, n=None, tags=None, exclude=()):
+        """
+        Random distinct entries. n=None returns one instance; n=k a tuple of k.
+        `tags`: only rows carrying all these tags. `exclude`: instances or keys to skip.
+        """
+        skip = {e.key if isinstance(e, Entity) else e for e in exclude}
+        pool = [r for r in cls.rows(tags) if r[cls.key_field] not in skip]
+        k = 1 if n is None else n
+        if k > len(pool):
+            raise ValueError(f"{cls.__name__}.sample: asked for {k} but only {len(pool)} "
+                             f"match tags={tags!r} excluding {sorted(skip)}")
+        idx = rng.choice(len(pool), size=k, replace=False)
+        out = tuple(cls._from_row(pool[int(i)], rng) for i in idx)
+        return out[0] if n is None else out
+
+    # --- serialization ---
+    def to_dict(self):
+        return {f.name: _plain(getattr(self, f.name)) for f in dataclasses.fields(self)}
+
+    @classmethod
+    def from_dict(cls, d):
+        names = {f.name for f in dataclasses.fields(cls)}
+        return cls(**{k: _plain(v) for k, v in dict(d).items() if k in names})
+
+    @property
+    def key(self):
+        return getattr(self, self.key_field)
+
+    def __str__(self):
+        return str(self.key)
+
+
+# subject, object, possessive (adjective), possessive pronoun, reflexive
+PRONOUNS = {
+    "he": ("he", "him", "his", "his", "himself"),
+    "she": ("she", "her", "her", "hers", "herself"),
+    "they": ("they", "them", "their", "theirs", "themselves"),
+}
+
+
+@dataclass(frozen=True)
+class Person(Entity):
+    """A person. CSV: people.csv (name, pronouns, tags); pronouns is he/she/they."""
+    csv_name: ClassVar[str] = "people.csv"
+    name: str
+    pronouns: str = "they"
+
+    def __post_init__(self):
+        if self.pronouns not in PRONOUNS:
+            raise ValueError(f"Person {self.name!r}: pronouns must be one of {list(PRONOUNS)}, "
+                             f"got {self.pronouns!r}")
+
+    @property
+    def subject(self):             # he / she / they
+        return PRONOUNS[self.pronouns][0]
+
+    @property
+    def object(self):              # him / her / them
+        return PRONOUNS[self.pronouns][1]
+
+    @property
+    def possessive(self):          # his / her / their (+ noun)
+        return PRONOUNS[self.pronouns][2]
+
+    @property
+    def possessive_pronoun(self):  # his / hers / theirs (standalone)
+        return PRONOUNS[self.pronouns][3]
+
+    @property
+    def reflexive(self):           # himself / herself / themselves
+        return PRONOUNS[self.pronouns][4]
+
+
+@dataclass(frozen=True)
+class Good(Entity):
+    """
+    A good. CSV: goods.csv (singular, plural, tags, pscales, qscales, article).
+
+    pscales/qscales list the typical price and quantity per grid unit (for Scaled
+    and graph axes); each instance carries one of each, chosen at random by get/sample.
+    Blank cells use DEFAULT_PSCALES / DEFAULT_QSCALES. article overrides a/an.
+    """
+    csv_name: ClassVar[str] = "goods.csv"
+    key_field: ClassVar[str] = "singular"
+    DEFAULT_PSCALES: ClassVar[tuple] = (1, 2, 5, 10, 20, 50)
+    DEFAULT_QSCALES: ClassVar[tuple] = (1000, 5000, 10_000, 50_000, 1_000_000)
+
+    singular: str
+    plural: str = ""
+    pscale: float = 1
+    qscale: float = 1
+    article: str = ""
+
+    @classmethod
+    def scales(cls, key):
+        """(pscales, qscales): every scale a good may be drawn with."""
+        for r in cls._all_rows():
+            if r[cls.key_field] == key:
+                return cls._row_scales(r)
+        raise KeyError(f"Good: no entry {key!r}")
+
+    @classmethod
+    def _row_scales(cls, row):
+        ps = tuple(_num(x) for x in _split(row.get("pscales"))) or cls.DEFAULT_PSCALES
+        qs = tuple(_num(x) for x in _split(row.get("qscales"))) or cls.DEFAULT_QSCALES
+        return ps, qs
+
+    @classmethod
+    def _from_row(cls, row, rng=None):
+        ps, qs = cls._row_scales(row)
+        if rng is None:
+            pscale, qscale = ps[0], qs[0]
+        else:
+            pscale, qscale = ps[int(rng.integers(len(ps)))], qs[int(rng.integers(len(qs)))]
+        return cls(singular=row["singular"], plural=row.get("plural") or row["singular"] + "s",
+                   pscale=pscale, qscale=qscale, article=row.get("article", ""))
+
+    @property
+    def a(self):
+        """'a car', 'an apple' (article column overrides)."""
+        art = self.article or ("an" if self.singular[:1].lower() in "aeiou" else "a")
+        return f"{art} {self.singular}"
+
+
+@dataclass(frozen=True)
+class Country(Entity):
+    """A country. CSV: countries.csv (name, adjective, tags)."""
+    csv_name: ClassVar[str] = "countries.csv"
+    name: str
+    adjective: str = ""
+
+
+@dataclass(frozen=True)
+class Firm(Entity):
+    """A firm. CSV: firms.csv (name, tags)."""
+    csv_name: ClassVar[str] = "firms.csv"
+    name: str
+
+
+@dataclass(frozen=True)
+class City(Entity):
+    """A city. CSV: cities.csv (name, country, tags)."""
+    csv_name: ClassVar[str] = "cities.csv"
+    name: str
+    country: str = ""

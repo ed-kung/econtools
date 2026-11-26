@@ -13,14 +13,23 @@ Each entry of setup_list is a dict with keys:
 Each entry of question_list is a dict with keys:
     'question', 'online_question', 'answer', 'online_answer', 'MCQ'
 These are the keys read by econtools.problems.formats.
+
+Params may hold econtools.entities objects (Person, Good, ...) or tuples/lists of
+them, e.g. default_params = {"good": Good.get("widget")}. record() stores them as
+plain dicts (parquet struct columns), and when a problem is rebuilt from saved
+params, any key whose *default* is an entity (or a sequence of entities) is
+converted back to that entity class.
 """
 
 import os
 from dataclasses import dataclass, field
 
+from collections.abc import Mapping
+
 import numpy as np
 
 from econtools.assignments.mcq import MCQ, generate_distractors
+from econtools.entities.core import Entity
 from econtools.math.scaled import Scaled
 
 
@@ -44,6 +53,27 @@ class ProblemConfig:
 #     from econtools.problems.base import config
 #     config.image_url_prefix = "/CSUN-Econ-310/assets/images/graphs"
 config = ProblemConfig()
+
+
+def _to_plain(x):
+    """Entities (and sequences of them) -> dicts, so they store cleanly in parquet."""
+    if isinstance(x, Entity):
+        return x.to_dict()
+    if isinstance(x, (list, tuple)) and x and all(isinstance(e, Entity) for e in x):
+        return [e.to_dict() for e in x]
+    return x
+
+
+def _restore_entities(value, default):
+    """Rebuild entity-valued params (saved as dicts) using the type of their default."""
+    if isinstance(default, Entity):
+        return type(default).from_dict(value) if isinstance(value, Mapping) else value
+    if (isinstance(default, (list, tuple)) and default
+            and all(isinstance(e, Entity) for e in default)
+            and isinstance(value, (list, tuple, np.ndarray))):
+        cls = type(default[0])
+        return tuple(cls.from_dict(e) if isinstance(e, Mapping) else e for e in value)
+    return value
 
 
 def _join_url(prefix, filename):
@@ -88,7 +118,7 @@ class GenericProblem:
         defaults = dict(self.default_params)
         if not params:
             return defaults
-        return {k: params.get(k, v) for k, v in defaults.items()}
+        return {k: _restore_entities(params.get(k, v), v) for k, v in defaults.items()}
 
     @classmethod
     def _default_instance_name(cls):
@@ -103,7 +133,7 @@ class GenericProblem:
 
     def record(self):
         """The row written to the valid-params data file."""
-        return self.params | self.sol
+        return {k: _to_plain(v) for k, v in (self.params | self.sol).items()}
 
     # --- builder helpers ---
     def add_setup(self, setup, online_setup=None):

@@ -2,7 +2,7 @@
 Named things for auto-generated problems: people, goods, countries, firms, cities.
 
 The possible values of each class live in a CSV file under ./data, one row per
-entry. Cells holding several values (tags, scales) separate them with ';'.
+entry. Cells holding several values (tags) separate them with ';'.
 
     from econtools.entities import Person, Good
 
@@ -10,6 +10,7 @@ entry. Cells holding several values (tags, scales) separate them with ';'.
     g1, g2 = Good.sample(rng, 2, tags="food")            # two distinct foods
     other = Person.sample(rng, exclude=[person])         # never the same as person
     widget = Good.get("widget")                          # a specific entry
+    price = widget.random_price(rng)                     # integer in [pmin, pmax] * pscale
 
     f"{person.name} sells {g1.plural} to {person.possessive} friends"
 
@@ -93,18 +94,18 @@ class Entity:
         return [r[cls.key_field] for r in cls.rows(tags)]
 
     @classmethod
-    def _from_row(cls, row, rng=None):
-        """Build an instance from a CSV row. Override when a row needs choices/parsing."""
+    def _from_row(cls, row):
+        """Build an instance from a CSV row. Override when a row needs parsing."""
         names = {f.name for f in dataclasses.fields(cls)}
         return cls(**{k: v for k, v in row.items() if k in names})
 
     # --- construction ---
     @classmethod
-    def get(cls, key, rng=None):
-        """The entry whose key field equals `key`. rng picks any random attributes."""
+    def get(cls, key):
+        """The entry whose key field equals `key`."""
         for r in cls._all_rows():
             if r[cls.key_field] == key:
-                return cls._from_row(r, rng)
+                return cls._from_row(r)
         raise KeyError(f"{cls.__name__}: no entry {key!r} in {cls.csv_path()}")
 
     @classmethod
@@ -120,7 +121,7 @@ class Entity:
             raise ValueError(f"{cls.__name__}.sample: asked for {k} but only {len(pool)} "
                              f"match tags={tags!r} excluding {sorted(skip)}")
         idx = rng.choice(len(pool), size=k, replace=False)
-        out = tuple(cls._from_row(pool[int(i)], rng) for i in idx)
+        out = tuple(cls._from_row(pool[int(i)]) for i in idx)
         return out[0] if n is None else out
 
     # --- serialization ---
@@ -184,46 +185,46 @@ class Person(Entity):
 @dataclass(frozen=True)
 class Good(Entity):
     """
-    A good. CSV: goods.csv (singular, plural, tags, pscales, qscales, article).
+    A good. CSV: goods.csv
+        (singular, plural, tags, pscale, qscale, pmin, pmax, qmin, qmax, article)
 
-    pscales/qscales list the typical price and quantity per grid unit (for Scaled
-    and graph axes); each instance carries one of each, chosen at random by get/sample.
-    Blank cells use DEFAULT_PSCALES / DEFAULT_QSCALES. article overrides a/an.
+    pscale/qscale are the good's typical price and quantity per unit (e.g. per grid
+    unit of a graph axis, or for Scaled). pmin..pmax and qmin..qmax are integer
+    ranges, in those units, for drawing a random price or quantity:
+        good.random_price(rng)  ==  rng.integers(pmin, pmax + 1) * pscale
+    Blank cells use DEFAULTS. article overrides the computed a/an.
     """
     csv_name: ClassVar[str] = "goods.csv"
     key_field: ClassVar[str] = "singular"
-    DEFAULT_PSCALES: ClassVar[tuple] = (1, 2, 5, 10, 20, 50)
-    DEFAULT_QSCALES: ClassVar[tuple] = (1000, 5000, 10_000, 50_000, 1_000_000)
+    DEFAULTS: ClassVar[dict] = {"pscale": 1, "qscale": 1, "pmin": 1, "pmax": 10, "qmin": 1, "qmax": 10}
 
     singular: str
     plural: str = ""
     pscale: float = 1
     qscale: float = 1
+    pmin: int = 1
+    pmax: int = 10
+    qmin: int = 1
+    qmax: int = 10
     article: str = ""
 
-    @classmethod
-    def scales(cls, key):
-        """(pscales, qscales): every scale a good may be drawn with."""
-        for r in cls._all_rows():
-            if r[cls.key_field] == key:
-                return cls._row_scales(r)
-        raise KeyError(f"Good: no entry {key!r}")
+    def __post_init__(self):
+        if self.pmin > self.pmax or self.qmin > self.qmax:
+            raise ValueError(f"Good {self.singular!r}: need pmin <= pmax and qmin <= qmax")
 
     @classmethod
-    def _row_scales(cls, row):
-        ps = tuple(_num(x) for x in _split(row.get("pscales"))) or cls.DEFAULT_PSCALES
-        qs = tuple(_num(x) for x in _split(row.get("qscales"))) or cls.DEFAULT_QSCALES
-        return ps, qs
-
-    @classmethod
-    def _from_row(cls, row, rng=None):
-        ps, qs = cls._row_scales(row)
-        if rng is None:
-            pscale, qscale = ps[0], qs[0]
-        else:
-            pscale, qscale = ps[int(rng.integers(len(ps)))], qs[int(rng.integers(len(qs)))]
+    def _from_row(cls, row):
+        nums = {k: _num(row[k]) if row.get(k) else v for k, v in cls.DEFAULTS.items()}
         return cls(singular=row["singular"], plural=row.get("plural") or row["singular"] + "s",
-                   pscale=pscale, qscale=qscale, article=row.get("article", ""))
+                   article=row.get("article", ""), **nums)
+
+    def random_price(self, rng):
+        """A random price: an integer in [pmin, pmax] times pscale."""
+        return int(rng.integers(self.pmin, self.pmax + 1)) * self.pscale
+
+    def random_quantity(self, rng):
+        """A random quantity: an integer in [qmin, qmax] times qscale."""
+        return int(rng.integers(self.qmin, self.qmax + 1)) * self.qscale
 
     @property
     def a(self):

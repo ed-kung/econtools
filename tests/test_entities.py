@@ -54,18 +54,23 @@ def test_sample():
         pass
 
 
-def test_good_scales():
+def test_good_scales_and_ranges():
+    coffee = Good.get("coffee")
+    assert (coffee.plural, coffee.pscale, coffee.qscale) == ("coffee", 5, 10000)
+    car = Good.get("car")
+    assert (car.pmin, car.pmax, car.pscale) == (2, 7, 10000)
     rng = np.random.default_rng(1)
-    seen = set()
-    for _ in range(300):
-        g = Good.sample(rng, tags="market")
-        ps, qs = Good.scales(g.singular)
-        assert g.pscale in ps and g.qscale in qs, g
-        if g.singular == "corn":
-            seen.add(g.pscale)
-    assert seen == {1, 2, 5, 10}, seen
-    assert Good.get("coffee").pscale == 5 and Good.get("coffee").plural == "coffee"
-    assert Good.get("widget").pscale == Good.DEFAULT_PSCALES[0]
+    prices = {car.random_price(rng) for _ in range(500)}
+    assert prices == {k * 10000 for k in range(2, 8)}, prices
+    qs = {car.random_quantity(rng) for _ in range(500)}
+    assert qs == {k * car.qscale for k in range(car.qmin, car.qmax + 1)}, qs
+    for g in (Good.get(k) for k in Good.keys()):
+        assert g.pmin <= g.pmax and g.qmin <= g.qmax, g
+    try:
+        Good("bad", pmin=5, pmax=1)
+        raise AssertionError("expected ValueError")
+    except ValueError:
+        pass
     assert Good.get("car").a == "a car" and Good.get("ice cream scoop").a == "an ice cream scoop"
 
 

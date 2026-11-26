@@ -197,6 +197,9 @@ class Scaled:
     def __str__(self):
         return format_number(self.real, self.numtype, human=True)
 
+    def texify(self):
+        return format_number(self.real, self.numtype, human=True).replace('$', '\\$').replace('%', '\\%')
+
 
 # ---- Demo
 
